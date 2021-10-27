@@ -1,0 +1,250 @@
+---
+title: "DATOS SOBRE LA RED VIAL DEL CANTON DE ACOSTA"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+```
+
+```{r PAQUETES}
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(tidyverse)
+library(sf)
+library(raster)
+library(terra)
+library(leaflet)
+library(flexdashboard)
+library(leaflet.extras)
+library(DT)
+
+```
+
+
+
+```{r carga de datos, include=FALSE}
+
+vias <-
+  st_read(
+    "https://raw.githubusercontent.com/Andre9424/Proyecto_parte_1/main/redvialWGS84.geojson",
+    quiet = TRUE
+  )
+
+distritos <-
+  st_read(
+    "https://raw.githubusercontent.com/Andre9424/Proyecto_parte_1/main/distritoWGS84.geojson",
+    quiet = TRUE
+  )
+   
+dem <-
+  rast(
+    "/vsicurl/https://raw.githubusercontent.com/Andre9424/Proyecto_parte_1/main/DemAcostaWGS84.tif"
+  )
+
+hill <-
+  rast(
+    "/vsicurl/https://raw.githubusercontent.com/Andre9424/Proyecto_parte_1/main/SombraAcostaWGS84.tif"
+  )
+
+altitud <-
+  rast(
+    "/vsicurl/https://raw.githubusercontent.com/tpb728O-programaciongeoespacialr/2021ii/master/datos/worldclim/altitud.tif"
+  )
+
+
+```
+
+```{r kilometro acumulado, include=FALSE}
+
+kilometro_acumulado <-
+  vias %>%
+  rename(Kilometros = Longitud__,
+         Estado = Estado_d_4) %>%
+  group_by(Estado) %>%
+  summarise(Kilometros = sum(Kilometros))
+
+kilometro_acumulado
+
+```
+
+```{r cambio-tabla, include=FALSE}
+Tabla_final_vias <-
+  vias %>%
+  rename(CODIGO = Código,
+        LONGITUDkm = Longitud__,
+        INICIO = De,
+        FINAL = A,
+        TPD = TPD,
+        IVTS = IVTS,
+        ESTADO = Estado_d_4,
+        CATEGORIA = Tipo_de_ví)
+
+Tabla_final_vias
+
+```
+Inicio
+=======================================================================
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+
+El cantón de Acosta se localiza en una zona principalmente rural, posee una topografia 
+con pendientes pronunciadas debido a que se compone de montañas y cerros, los pueblos 
+se encuentran lejos unos de otros por lo que las vias de comunicacion terrestre, como 
+las carreteras, son muy importantes para el canton.El ente encargado de velar por esta necesidad 
+es la Municipalidad de Acosta, a traves de la Unidad Tecnica de Gestion Vial y con los fondos 
+de la Ley N° 8114 Ley de Simplificacion y Eficiencia Tributaria [Consulte aquí](http://www.pgrweb.go.cr/SCIJ/Busqueda/Normativa/Normas/nrm_texto_completo.aspx?param1=NRTC&nValor1=1&nValor2=46631&nValor3=99456&strTipM=TC). 
+
+Actualmente, muchas caminos se encuentran en un estado regular ya que debido a la topografia del terreno 
+y las grandes distancias la labor de mantenimiento se complica por lo que es importante que la Unidad priorice las rutas mas importantes
+y maneje un inventario de las mismas, por ello, a traves de este portal se coloca la red vial en un mapa digital y se habilita un apartado para consulta de los datos del inventario, ademas, se muestran estadisticas del estado e importancia de la red segun su categoria con lo cual se 
+espera que sea una herramienta para implementar en analisis y toma de decisiones.
+
+
+La principal fuente de datos que se utiliza en este portal corresponde al inventario de la red vial, este se compone de una parte espacial y otra 
+documental, esta ultima es validada por el Ministerio de Obras Publicas y Transportes, MOPT, y la parte espacial es validad por el mismo municipio, ambas se enlazan a traves del codigo del camino, el cual es unico. 
+
+
+1) Longitud
+2) Codigo
+3) Punto de inicio y fin
+4) Estado
+5) Cantidad de transito promedio diario
+6) Tipo de via:
+  + Primaria
+  + Secundaria
+  + Terciaria
+  
+El contacto de la Unidad tecnica de Gestion Vial se localiza en la pagina web de la [Municipalidad de Acosta](https://www.acosta.go.cr/index.php/contactenos)
+
+[Codigo Tarea](https://github.com/Andre9424/Tablero_AndreinaParte1.git)
+
+
+Consulta
+=======================================================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Mapa de la Red Vial Cantonal
+
+```{r mapa-leaflet}
+
+#dem_acosta <- raster(dem)
+#sombras_acosta <- raster(hill)
+#altitud_rl <- raster::raster(altitud)
+
+leaflet() %>%
+  addTiles() %>% 
+  setView(-84.2469, 9.7417, 10) %>%
+  
+  addPolylines(
+    data = vias,
+    color = "red",
+    stroke = TRUE,
+    weight = 2.0,
+    popup  = ~Tipo_de_ví,
+    label = ~Código,
+    group = "Red Vial Cantonal"
+  ) %>%
+  addPolylines(
+    data = distritos,
+    color = "yellow",
+    stroke = TRUE,
+    weight = 2.5,
+    group = "Distritos"
+    ) %>%
+  
+  #addRasterImage(
+  #altitud_rl, 
+  #opacity = 0.6
+  #) %>%    
+    #addRasterImage(group = "Modelo Digital de Elevacion",
+  #dem_acosta, 
+  # opacity = 0.6
+  #) %>%    
+  # addRasterImage(group = "Modelo de Sombras",
+  #  sombras_acosta, 
+   # opacity = 0.6
+  #) %>% 
+  
+ addMiniMap( 
+    width = 90,
+    height = 90,
+		tiles = providers$Esri.WorldStreetMap,
+		toggleDisplay = TRUE) %>%
+  
+addMeasurePathToolbar(
+  options = measurePathOptions(imperial = FALSE,
+  minPixelDistance = 100,
+  showDistances = TRUE)) %>%
+ 
+  addProviderTiles(
+    providers$CartoDB.Positron, group = "Sitios") %>%
+  addProviderTiles(
+    providers$Esri.WorldImagery, group = "Imagen satelital") %>%
+  addLayersControl(
+    baseGroups = c("Imagen satelital","Sitios"),
+    overlayGroups = c("Red Vial Cantonal","Distritos"),
+    options = layersControlOptions(collapsed = T)
+  )
+
+```
+
+### Consulta del inventario vial
+
+```{r tabla}
+Tabla_final_vias %>%
+  st_drop_geometry() %>%
+  dplyr::select(CODIGO, LONGITUDkm, INICIO, FINAL, TPD, IVTS, ESTADO, CATEGORIA) %>%
+  datatable(Tabla_final_vias, options = list(language = list(url = '//cdn.datatables.net/plug-ins/1.11.3/i18n/es_es.json'), pageLength = 5))
+
+```
+
+
+Estadisticas
+=======================================================================
+
+fill {data-width=500}
+-----------------------------------------------------------------------
+
+### Estado de la Red Vial
+
+```{r grafico 1}
+ggplot(
+  kilometro_acumulado, 
+  aes(x = Estado, y = Kilometros, fill = Estado)) +
+  geom_col() +
+  geom_text(aes(label=Kilometros), vjust=-0.3, size=3.5)+
+  ggtitle("Kilometros acumulados de camino cantonal segun su estado") +
+  xlab("Estado") +
+  ylab("Kilometros acumulados") +
+  guides(fill = guide_legend(title = "Estado")) +
+  scale_fill_discrete(labels = c("Bueno", "Regular", "Malo"))
+
+```
+
+### Importancia de la Red Vial
+
+```{r grafico 2}
+
+library(ggplot2)
+cols <- c("#D43F3A", "#EEA236", "#5CB85C", "#46B8DA")
+
+ggplot(data = vias) +
+  geom_line(lwd = 0.5, aes(x = IVTS , y = TPD, color = Tipo_de_ví)) + 
+  facet_grid(~Tipo_de_ví)+
+  scale_color_manual(values = cols) +
+  ggtitle("Importancia de las vias cantonales segun el TPD y el IVTS") +
+  xlab("Indice de Viabilidad Tecnico - Social ITVS") +
+  ylab("Transito Promedio Diario TPD") +
+  guides(color = guide_legend(title = "Tipo de via")) +
+  scale_fill_discrete(labels = c("Primaria", "Secundaria", "Terceria"))
+
+```
+
